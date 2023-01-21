@@ -1,0 +1,61 @@
+---
+title: "error rate by each data entry staff"
+author: "Reynaldi Ikhsan Kosasih"
+date: "2023-01-20"
+output: html_document
+---
+```{r results='hide'}
+
+#these are my 'default' packages when working with r
+
+library(ggplot2) #create advanced and sophisticating plot
+library(tidyverse) #tidying columns, row, etc
+library(summarytools) #summary of basic statistics
+library(dplyr) #manipulate dataframe
+library(readxl) #read excel file
+library(writexl) #export to excel
+
+error_rate_staff <- read_excel("D:/SID/Research Data Center/Daily Log and Performance Report - SID's Research Data Center.xlsx", sheet = "Staff Daily Performance", col_types = c("date", "text", "text", "numeric", "numeric", "numeric", "numeric", "text"))
+
+error_rate_staff$error_rate <- (round(error_rate_staff$error_rate, 4) * 100) #convert error rate to a round number with two decimals for better readability
+```
+## R time series
+
+```{r}
+library(tidyr) #convert long data to wide data (and vice versa)
+
+df <- subset(error_rate_staff, select = c("date", "id_de", "error_rate"))
+df <- df %>% filter(date >= '2022-12-18' & date <= '2023-01-18')
+df2 <- pivot_wider(df, names_from = id_de, values_from = error_rate)
+
+head(df2)
+```
+```{r}
+#produce interactive graph
+
+library(dygraphs)
+library(xts) # To make the conversion data-frame / xts format
+
+dftime = xts(x=df2[,-1], order.by=df2$date)
+
+p <- dygraph(dftime, main = "Error Rate by Data Entry Staff") %>%
+      dyAxis("y", label = "Error Rate (in %)", valueRange = c(0, 1.1)) %>%
+    dyGroup(c("DE-01-903", "DE-02-941", "DE-03-943", "DE-04-947", "DE-05-948", "DE-06-960", "DE-07-963"), drawPoints = TRUE, color = c("blue", "green", "#6A3D9A", "#E31A1C", "darkturquoise", "#FF7F00", "brown")) %>%
+  dyOptions(axisLineWidth = 2, fillGraph = FALSE, drawGrid = TRUE) %>%
+dyHighlight(highlightCircleSize = 5, 
+              highlightSeriesBackgroundAlpha = 0.2,
+              hideOnMouseOut = TRUE)
+p
+
+#export to png image
+
+library(htmlwidgets)
+library(webshot)
+
+saveWidget(p, "temp.html", selfcontained = FALSE)
+width<- 1080
+height <- 610
+webshot("temp.html", file = "Rplot.png",
+        cliprect = c(10,30,width+50,height+50)
+        ,vwidth = width, vheight = height )
+```
