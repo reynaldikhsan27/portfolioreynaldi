@@ -2,7 +2,7 @@
 title: "error rate by each data entry staff"
 author: "Reynaldi Ikhsan Kosasih"
 date: "2023-01-20"
-output: html_document
+output: rmarkdown::github_document
 ---
 ```{r results='hide'}
 
