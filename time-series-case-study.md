@@ -3,6 +3,8 @@ error rate by each data entry staff
 Reynaldi Ikhsan Kosasih
 2023-01-20
 
+## in this example, I am going to demonstrate my capability in working with time series data. Case: I was asked to evaluate error rate of each data entry staff in the last month.
+
 ``` r
 #these are my 'default' packages when working with r
 

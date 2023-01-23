@@ -2,8 +2,10 @@
 title: "error rate by each data entry staff"
 author: "Reynaldi Ikhsan Kosasih"
 date: "2023-01-20"
-output: github_document
+output: html_document
 ---
+
+## in this example, I am going to demonstrate my capability in working with time series data. Case: I was asked to evaluate error rate of each data entry staff in the last month.
 ```{r results='hide'}
 
 #these are my 'default' packages when working with r
