@@ -1,0 +1,92 @@
+---
+title: "Dosresp"
+author: "Reynaldi Ikhsan Kosasih"
+date: "2/2/2022"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Summarized data about the relation between red meat consumption
+## and diabetes risk in 12 prospective cohort
+
+```{r results='hide'}
+library(dosresmeta)
+library(readxl)
+redmeat <- read_excel("repository data.xlsx", sheet = "Clean")
+View(redmeat)
+```
+
+## Fixed-effect dose-response model assuming linearity
+```{r results='hold'}
+lin.fixed <- dosresmeta(formula = logrr ~ dose, type = type, id = id,
+	se = se, cases = cases, n = peryears,  data = redmeat, method = "fixed")
+summary(lin.fixed)
+predict(lin.fixed, delta = 50, exp = TRUE)
+```
+## Random-effect dose-response model assuming linearity
+First we assume a log-linear relation between red meat consumption and diabetes risk using a random-effect model.
+```{r results='hold'}
+lin <- dosresmeta(formula = logrr ~ dose, type = type, id = id,
+	se = se, cases = cases, n = peryears,  data = redmeat)
+summary(lin)
+```
+
+We found a significant log-linear dose-response association between red meat consumption and diabetes risk (p < 0.0278). There is an evidence of heterogeneity across studies (Q = 75.91, p value = 0.0000).
+The change in diabetes risk associated with every 50 grams/day (standard portion) can be obtained with the predict function.
+```{r results='hold'}
+predict(lin, delta = 50, exp = TRUE)
+```
+Every 50 grams/day increase in red meat consumption was associated with a significant 12%
+(95% CI = 1.2, 24.6) increased risk of diabetes.
+
+
+## Non-linearity (spline) using random-effect
+```{r results='hold'}
+library("rms")
+knots <- quantile(redmeat$dose, c(.1, .5, .9))
+spl <- dosresmeta(formula = logrr ~ rcs(dose, knots), type = type, id = id, se = se, cases = cases, n = peryears, data = redmeat)
+summary(spl)
+```
+## Multivariate Wald test
+```{r results='hold'}
+library(aod)
+wald.test(b = coef(spl), Sigma = vcov(spl), Terms = 1:2)
+```
+## Tabulate result
+```{r results='hold'}
+dataTab <- data.frame(dose = seq(0, 200, 50))
+predLin <- predict(lin, dataTab, exp = TRUE)
+predSpl <- predict(spl, dataTab, exp = TRUE)
+round(cbind(lin = predLin, spl = predSpl[2:5]), 2)
+```
+## figure
+```{r results='hold'}
+newdata <- data.frame(dose <- seq(0, 200, 1))
+xref <- 0
+with(predict(spl, newdata, xref, exp = TRUE),{
+plot(get("rcs(dose, knots)dose"), pred, type = "l", ylim = c(.8, 1.8),
+ylab = "Relative risk", xlab = "Red meat consumption, grams/day",
+log = "y", bty = "l", las = 1)
+matlines(get("rcs(dose, knots)dose"), cbind(ci.ub, ci.lb),
+col = 1, lty = "dashed")
+})
+points(dose, predict(lin, newdata, xref)$pred, type = "l", lty = 3)
+rug(redmeat$dose)
+```
+
+Figure 1: Pooled dose-response association between red meat consumption and diabetes risk (solid line). Red meat consumption was modeled with restricted cubic splines in a multivariate random-effects dose-response model. Dash lines represent the 95% confidence intervals for the spline model. The dotted line represents the linear trend. Tick marks below the curve represent the positions of the study-specific relative risks. 
+The value of 0 grams/day served as referent. The relative risks are plotted on the log scale.
+
+# Extract Function
+```{r results='hold'}
+rr_fun <- rcsplineFunction(attr(spl$model[[2]], "parms"), coef(spl))
+exp(rr_fun(0))
+exp(rr_fun(50))
+exp(rr_fun(75))
+```
+
