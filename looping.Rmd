@@ -1,0 +1,90 @@
+---
+title: "automated assignment"
+author: "Reynaldi Ikhsan Kosasih"
+date: "2023-01-10"
+output: html_document
+---
+
+# the objective is to assign staff based on their score to specific assignment. We want to send staff with high score to do harder assignment.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R load file
+```{r}
+library(tidyverse) #tidying columns, row, etc
+library(dplyr) #manipulate dataframe
+library(readxl) #read excel file
+library(writexl) #export to excel
+
+schedule <- read_excel("C:/Users/reynaldikhsan/Downloads/jadwal posyandu master loop.xlsx", sheet = "helper")
+fieldstaff <- read_excel("D:/SID/Research Data Center/hand score_last 30 days.xlsx", sheet = "Sheet2")
+fsname <- read_excel("D:/SID/Research Data Center/hand score_last 30 days.xlsx", 
+    sheet = "Sheet3", col_types = c("text", 
+        "text"))
+```
+## check data
+```{r}
+head(schedule, 5) #lower score indicates higher difficulty of assignment
+```
+```{r}
+head(fieldstaff, 5) #id field staff and their score
+```
+```{r}
+head(fsname, 5) #id field staff and their names
+```
+## assignment
+```{r}
+tasks <- schedule$desa_posyandu
+difficulties <- schedule$desa_easyness
+
+staff <- fieldstaff$id_fs_1
+capabilities <- fieldstaff$hand_score
+ 
+# Create an empty data frame to store the task assignments
+assignments <- data.frame(staff=character(), task=character(), stringsAsFactors = FALSE)
+
+# Loop through the tasks and assign them to the most capable staff member
+for (i in 1:length(tasks)) {
+
+# Find the index of the staff member with the highest capability - difficulty score
+best_fit <- which.max(capabilities - difficulties[i])
+   
+# Assign the task to the staff member and record the assignment
+assignments <- rbind(assignments, data.frame(staff=staff[best_fit], task=tasks[i], stringsAsFactors = FALSE))
+   
+# Remove the assigned staff member from the list of available staff
+staff <- staff[-best_fit]
+capabilities <- capabilities[-best_fit]
+}
+
+ # Print the final task assignments
+print(assignments)
+```
+#make the final list
+```{r}
+#inner join with final assignment
+finalschedule <- read_excel("C:/Users/reynaldikhsan/Downloads/jadwal posyandu master loop.xlsx", sheet = "with_field_staff_id")
+
+assignments <- rename(assignments, desa_posyandu = task)
+
+finalschedule = finalschedule %>% inner_join(assignments, by="desa_posyandu")
+
+fieldstaff <- rename(fieldstaff, staff = id_fs_1)
+fsname <- rename(fsname, staff = id_fs_1)
+
+finalschedule = finalschedule %>% inner_join(fieldstaff, by="staff")
+
+#inner join with staff name
+
+finalschedule$staff <- as.character(finalschedule$staff)
+
+finalschedule = finalschedule %>% inner_join(fsname, by="staff")
+
+#drop unnecessary column
+
+finalschedule <- finalschedule[-c(2:6, 9:10, 12:41)]
+head(finalschedule)
+
+write_xlsx(finalschedule, "D:/Portfolio/clone/loop automated assignment.xlsx")
+```
