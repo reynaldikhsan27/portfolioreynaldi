@@ -2,7 +2,7 @@
 title: "playing with data visualization using ggplot2 in R"
 author: "Reynaldi Ikhsan Kosasih"
 date: "2023-01-23"
-output: html_document
+output: rmarkdown::github_document
 ---
 
 ```{r setup, include=FALSE}
@@ -47,7 +47,7 @@ c25 <- c(
 # load dataset
 
 
-df <- read_excel("D:/Portfolio/clone/exams score.xlsx", 
+df <- read_excel("D:/Portfolio/clone/exam score.xlsx", 
      col_types = c("text", "text", "text", 
          "text", "text", "text", "numeric", 
          "numeric", "numeric"))
