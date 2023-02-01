@@ -1,0 +1,181 @@
+---
+title: "machine learning demonstration"
+author: "Reynaldi Ikhsan Kosasih"
+date: "2023-01-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# machine learning
+We are going to use the bank_data to predict whether the direct marketing campaign of a Portuguese bank was successful. The classification goal is to predict if the client will subscribe a term deposit (variable y).
+
+#load necessary library
+```{r results='hide'}
+#these are my 'default' packages when working with r
+
+library(ggplot2) #create advanced and sophisticating plot
+library(tidyverse) #tidying columns, row, etc
+library(flextable) #flextable are designed to make tabular reporting easier for R users
+library(summarytools) #summary of basic statistics
+library(dplyr) #manipulate dataframe
+library(readxl) #read excel file
+library(writexl) #export to excel
+
+#create a value consists of 25 distinct colors for better plots customization
+c25 <- c(
+  "dodgerblue2", "#E31A1C", # red
+  "green4",
+  "#6A3D9A", # purple
+  "#FF7F00", # orange
+  "black", "gold1",
+  "skyblue2", "#FB9A99", # lt pink
+  "palegreen2",
+  "#CAB2D6", # lt purple
+  "#FDBF6F", # lt orange
+  "gray70", "khaki2",
+  "maroon", "orchid1", "deeppink1", "blue1", "steelblue4",
+  "darkturquoise", "green1", "yellow4", "yellow3",
+  "darkorange4", "brown"
+)
+```
+#load data
+```{r}
+library(readxl)
+df <- read_excel("D:/Portfolio/clone/bank-additional-full.xlsx", 
+    col_types = c("numeric", "text", "text", 
+        "text", "text", "text", "text", "text", 
+        "text", "text", "numeric", "numeric", 
+        "numeric", "numeric", "text", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "text"))
+```
+#check histogram and descriptive plot of predictors
+```{r}
+hist(df$age)
+descr(df$age)
+
+barplot(table(df$job), ylim = c(0, 12000))
+freq(df$job)
+
+barplot(table(df$education), ylim = c(0, 12000))
+freq(df$education)
+```
+#remove unnecessary variables and recode categorical variables for simpler categorization
+```{r}
+df <- subset(df, select = -c(5, 9:11, 13, 15:20))
+
+df$age <- as.factor(cut(df$age, breaks = c(0,30,45,99), labels = c("30 and under","31 to 45", "46 and over")))
+
+df$education <- recode(df$education, illiterate = "basic", unknown = "basic", basic.4y = "basic", basic.6y = "basic", basic.9y ="basic")
+
+df$job <- recode(df$job, student = "retired or unemployed", unknown = "retired or unemployed", housemaid = "services", technician = "blue-collar", admin. = "management", "self employed" = "services", retired = "retired or unemployed", unemployed = "retired or unemployed")
+
+df[df == 'unknown'] <- NA
+```
+# remove missing data and check the proportion of outcome variables
+```{r}
+df <- na.omit(df)
+df <- rename(df, deposit = y)
+
+df$deposit <- as.factor(df$deposit)
+freq(df$deposit)
+```
+#our data is imbalance, user oversampling-undersampling method to balance the data
+```{r}
+library(ROSE)
+
+df <- ovun.sample(deposit~., data=df, N=40000, p=0.40, seed=250, method="both")$data
+
+```
+
+# split the data to train and test dataset
+```{r}
+library(caret)
+
+set.seed(123)
+training.samples <- df$deposit %>% createDataPartition(p = 0.8, list = FALSE)
+train.data  <- df[training.samples, ]
+test.data <- df[-training.samples, ]
+```
+#selecting predictors using lasso regression method
+
+Lasso regression will penalize the regression coefficient of insignificant predictors to zero
+```{r}
+# Predictor variables and outcome using train data
+x <- model.matrix(deposit~., train.data)
+y <- ifelse(train.data$deposit == "yes", 1, 0)
+```
+# Find the best lambda using cross-validation
+```{r}
+library(glmnet)
+set.seed(1234) 
+cv.lasso <- cv.glmnet(x, y, alpha = 1, family = "binomial")
+plot(cv.lasso)
+
+#optimal lambda
+print(cv.lasso$lambda.min)
+
+#lambda.1se (simplest model)
+print(cv.lasso$lambda.1se)
+```
+#coefficient regression using lambda.min
+```{r}
+coef(cv.lasso, cv.lasso$lambda.min)
+```
+#coefficient regression using lambda.1se
+```{r}
+coef(cv.lasso, cv.lasso$lambda.1se)
+```
+# Fit the final model on the training data using lambda.min
+```{r}
+model <- glmnet(x, y, alpha = 1, lambda = cv.lasso$lambda.min, family = "binomial")
+```
+# Make predictions on the test data
+```{r}
+x.test <- model.matrix(deposit ~., test.data)
+probabilities <- model %>% predict(newx = x.test)
+head(probabilities, 10)
+predicted.classes <- ifelse(probabilities > 0.5, "yes", "no")
+head(predicted.classes, 10)
+```
+# Model accuracy
+```{r}
+observed.classes <- test.data$deposit
+mean(predicted.classes == observed.classes)
+```
+#calculate R-squared for lasso model
+```{r}
+model$dev.ratio
+```
+
+
+# check the full logistic model
+```{r}
+# Fit the full logistic model
+full.model <- glm(deposit ~., data = train.data, family = binomial)
+summary(full.model)$coef
+print(summary(full.model))
+```
+# Make predictions using full logistic model
+```{r}
+probabilities_full <- full.model %>% predict(test.data, type = "response")
+head(probabilities_full, 10)
+predicted.classes_full <- ifelse(probabilities_full > 0.5, "yes", "no")
+head(predicted.classes_full, 30)
+```
+# full logistic model accuracy
+```{r}
+observed.classes_full <- test.data$deposit
+mean(predicted.classes_full == observed.classes_full)
+```
+#calculate R-squared value of full model
+```{r}
+with(summary(full.model), 1 - deviance/null.deviance)
+```
+
+#notes
+after comparing both of lasso logistic regression model compared to full model, we can say that simpler model (using less predictor) does not compromise the accuracy of our model.
+
+However, R-squared value of both models are relatively low. This means that our model still poorly fits the data. We may assume that there are uncollected/unobserved predictors that might explain more about the dependent variable of deposit.

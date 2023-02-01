@@ -1,0 +1,123 @@
+---
+title: "playing with data visualization using ggplot2 in R"
+author: "Reynaldi Ikhsan Kosasih"
+date: "2023-01-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Goals
+
+In this mock-up example, I am going to demonstrate my capability in using R for data visualization
+
+This demonstration used an exam score dataset that consists of 1000 observations.
+
+## load library
+
+These are my 'default' packages when working with r
+```{r results='hide'}
+library(ggplot2) #create advanced and sophisticating plot
+library(tidyverse) #tidying columns, row, etc
+library(flextable) #flextable are designed to make tabular reporting easier for R users
+library(summarytools) #summary of basic statistics
+library(dplyr) #manipulate dataframe
+library(readxl) #read excel file
+library(writexl) #export to excel
+
+#create a value consists of 25 distinct colors for better plots customization and presentation
+c25 <- c(
+  "blue1", "#E31A1C", # red
+  "green4",
+  "#6A3D9A", # purple
+  "#FF7F00", # orange
+  "black", "gold1",
+  "skyblue2", "#FB9A99", # lt pink
+  "palegreen2",
+  "#CAB2D6", # lt purple
+  "#FDBF6F", # lt orange
+  "gray70", "khaki2",
+  "maroon", "orchid1", "deeppink1", "dodgerblue2", "steelblue4",
+  "darkturquoise", "green1", "yellow4", "yellow3",
+  "darkorange4", "brown"
+)
+
+# load dataset
+
+
+df <- read_excel("D:/Portfolio/clone/exams score.xlsx", 
+     col_types = c("text", "text", "text", 
+         "text", "text", "text", "numeric", 
+         "numeric", "numeric"))
+head(df)
+```
+## create several new variables as variables of interest
+
+I added several variables, which are overall scores (math * .60 + reading * 0.20 + writing * 0.20) and pass (yes or no). Those who scored more than the minimum passing grade of 75 would pass the exam.
+```{r}
+df$overall_scores <- (df$math_score * 0.60) + (df$reading_score * 0.20) + (df$writing_score * 0.20)
+df$pass <- if_else(df$overall_scores >= 75, "yes", "no", missing = NULL)
+```
+## check descriptive analysis (frequency, distribution, etc)
+
+```{r}
+freq(df$gender)
+freq(df$race)
+freq(df$parental_education)
+freq(df$lunch)
+freq(df$test_preparation)
+freq(df$pass)
+
+descr(df$math_score)
+descr(df$reading_score)
+descr(df$writing_score)
+descr(df$overall_scores)
+```
+
+## using ggplot package to create plots (histogram to observe the distribution)
+```{r}
+p1 <- ggplot(df, aes(x = overall_scores)) + geom_histogram(binwidth = 3, color="white", fill="lightblue") + geom_vline(aes(xintercept=75), color="maroon", linetype="dashed", size=1) + ggtitle("overall scores of 1000 students") + xlab("overall scores") + ylab("number of students") + scale_y_continuous(limits = c(0, 100), breaks = seq(0, 100, by = 20)) # adding vertical line of passing grade (75)
+
+p1
+
+# export jpeg file
+
+jpeg(file="histogram overall score.jpeg")
+p1
+dev.off()
+```
+## overlaid histogram to compare the overall score between men and women
+```{r}
+p2 <- ggplot(data=subset(df, !is.na(gender)), aes(x = overall_scores, color = gender)) + geom_histogram(binwidth = 3, fill="white", alpha=0.2, position = "identity") + geom_vline(aes(xintercept=75), color="maroon", linetype="dashed", size=1) + ggtitle("overall scores of 1000 students, men and women") + xlab("overall scores") + ylab("number of students") + scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, by = 10)) + scale_color_manual(values = c25)
+
+p2
+```
+
+## scatterplot for math score, reading score, and writing score
+```{r}
+# Plot with main and axis titles
+library(car)
+scatterplot(writing_score ~ reading_score, data = df, grid = TRUE, frame = TRUE, main = "Scatterplot of Reading Score and Writing Score", xlab = "Reading Score", ylab = "Writing Score")
+
+# 3d scatterplot
+
+library(scatterplot3d)
+
+x <- df$math_score
+y <- df$reading_score
+z <- df$writing_score
+grp <- as.factor(df$gender)
+
+scatterplot3d(x, y, z, pch = 16, color = c25[grp],
+              grid = TRUE, box = FALSE, xlab = "Math Score", 
+              ylab = "Reading Score", zlab = "Writing Score")
+legend("right", legend = levels(grp),
+      col =  c25[grp], pch = 16)
+```
+## box plot by race and gender to observe outlier (if any, indicated by red dots)
+```{r}
+bp <- ggplot(data=subset(df, !is.na(race) & !is.na(gender)), aes(x=race, y=overall_scores, fill=gender)) + geom_boxplot(outlier.colour="red", outlier.shape=16,outlier.size=2, notch=FALSE) + scale_color_manual(values=c25)
+bp
+```
