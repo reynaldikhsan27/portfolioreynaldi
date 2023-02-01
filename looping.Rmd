@@ -2,7 +2,7 @@
 title: "automated assignment"
 author: "Reynaldi Ikhsan Kosasih"
 date: "2023-01-10"
-output: html_document
+output: rmarkdown::github_document
 ---
 
 # the objective is to assign staff based on their score to specific assignment. We want to send staff with high score to do harder assignment.
@@ -80,11 +80,14 @@ finalschedule = finalschedule %>% inner_join(fieldstaff, by="staff")
 finalschedule$staff <- as.character(finalschedule$staff)
 
 finalschedule = finalschedule %>% inner_join(fsname, by="staff")
-
-#drop unnecessary column
-
-finalschedule <- finalschedule[-c(2:6, 9:10, 12:41)]
+finalschedule <- rename(finalschedule, staff_id = staff)
+```
+#drop unnecessary column and export excel output
+```{r}
+finalschedule <- finalschedule[c(9, 17:20)]
+finalschedule$desa_easyness <- if_else(is.na(finalschedule$desa_easyness), schedule$desa_easyness, finalschedule$desa_easyness)
 head(finalschedule)
-
+```
+```{r}
 write_xlsx(finalschedule, "D:/Portfolio/clone/loop automated assignment.xlsx")
 ```
